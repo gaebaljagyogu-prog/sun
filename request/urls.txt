@@ -1,0 +1,1 @@
+test_01.png https://raw.githubusercontent.com/ohaworld777/claud/main/relay/uav/01.png
