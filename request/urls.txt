@@ -1,1 +1,2 @@
 test_01.png https://raw.githubusercontent.com/ohaworld777/claud/main/relay/uav/01.png
+radio_r1_01.jpg https://pikaso.cdnpk.net/private/production/5290919238/render.jpg?token=exp=1788220800~hmac=9f5be3ca2bbcb02f4efd82347bd26e6348abccb4dfa1ba55049c531c162faa55
