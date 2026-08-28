@@ -1,0 +1,50 @@
+name: ks-auto-relay
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "*/5 * * * *"
+permissions:
+  contents: write
+concurrency:
+  group: ks-relay
+  cancel-in-progress: false
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: read board
+        run: |
+          ok=0
+          for u in "https://1a7ddf32-46c9-4205-a276-7f56c0519026.frame.claudeusercontent.com/" \
+                   "https://claude.ai/code/artifact/1a7ddf32-46c9-4205-a276-7f56c0519026"; do
+            curl -sL --max-time 30 "$u" -o page.html || continue
+            if grep -q KS_RELAY_BEGIN page.html; then echo "board: $u"; ok=1; break; fi
+          done
+          mkdir -p relay
+          if [ "$ok" = "0" ]; then
+            echo "board fetch failed" > relay/_status.txt
+          else
+            sed -n '/KS_RELAY_BEGIN/,/KS_RELAY_END/p' page.html | sed '1d;$d' | sed 's/<[^>]*>//g' | sed 's/^ *//' > manifest.txt
+            { echo "board ok"; cat manifest.txt; } > relay/_status.txt
+          fi
+      - name: download new files
+        run: |
+          [ -f manifest.txt ] || exit 0
+          while read -r name url; do
+            [ -z "$name" ] && continue
+            case "$name" in "#"*) continue;; esac
+            [ -f "relay/$name" ] && continue
+            echo "fetch $name"
+            curl -sSL --retry 3 --max-time 120 -o "relay/$name" "$url" || { rm -f "relay/$name"; continue; }
+            if head -c 100 "relay/$name" | grep -qi "<html"; then echo "error page: $name"; rm -f "relay/$name"; fi
+          done < manifest.txt
+      - name: commit
+        run: |
+          git config user.name "ks-relay"
+          git config user.email "relay@users.noreply.github.com"
+          git add relay
+          git commit -m "relay update" || exit 0
+          n=0
+          until git push; do n=$((n+1)); [ $n -ge 3 ] && exit 1; git pull --rebase; done
